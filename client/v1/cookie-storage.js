@@ -25,8 +25,19 @@ CookieStorage.prototype.getCookieValue = function (name) {
     return new Promise(function(resolve, reject) {
         self.storage.findCookie(CONSTANTS.HOSTNAME, '/', name, function(err, cookie) {
             if (err) return reject(err);
-            if (!_.isObject(cookie)) return reject(new Exceptions.CookieNotValidError(name));
-            resolve(cookie);
+            if (!_.isObject(cookie)) {
+                // try with different hostname because sometimes the hostname changes
+                // from 'i.instagram.com' to 'instagram.com'
+                self.storage.findCookie(CONSTANTS.TLD, '/', name, function (err, cookie) {
+                    if (err) return reject(err);
+                    if (!_.isObject(cookie)) {
+                        return reject(new Exceptions.CookieNotValidError(name));
+                    }
+                    resolve(cookie);
+                })
+            } else {
+                resolve(cookie);
+            }
         })
     });
 };
@@ -46,7 +57,12 @@ CookieStorage.prototype.getCookies = function () {
     return new Promise(function(resolve, reject) {
         self.storage.findCookies(CONSTANTS.HOSTNAME, '/', function(err, cookies){
             if (err) return reject(err);
-            resolve(cookies || []);
+            // try with different hostname because sometimes the hostname changes
+            // from 'i.instagram.com' to 'instagram.com'
+            self.storage.findCookies(CONSTANTS.TLD, '/', function (err, cookies2) {
+                if (err) return reject(err);
+                resolve((cookies || []).concat(cookies2 || []));
+            })
         })
     });
 };
@@ -82,12 +98,15 @@ CookieStorage.prototype.removeCheckpointStep = function () {
     return new Promise(function(resolve, reject) {
         self.storage.removeCookie(CONSTANTS.HOSTNAME, '/', 'checkpoint_step', function(err){
             if (err) return reject(err);
-            resolve();
+            // try with different hostname because sometimes the hostname changes
+            // from 'i.instagram.com' to 'instagram.com'
+            self.storage.removeCookie(CONSTANTS.TLD, '/', 'checkpoint_step', function (err) {
+                if (err) return reject(err);
+                resolve();
+            })
         })
     });
 };
-
-
 
 CookieStorage.prototype.destroy = function () {
     throw new Error("Mehtod destroy is not implemented")
